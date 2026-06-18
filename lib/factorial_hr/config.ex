@@ -1,13 +1,13 @@
-defmodule FactorialHREx.Config do
+defmodule FactorialHR.Config do
   @moduledoc """
-  Configuration normalization for `FactorialHREx`.
+  Configuration normalization for `FactorialHR`.
 
   The library accepts explicit keyword options and has a small environment
   fallback for scripts. Host applications should normally pass credentials from
   their own configuration layer instead of relying on process environment.
   """
 
-  alias FactorialHREx.Error
+  alias FactorialHR.Error
 
   @default_base_url "https://api.factorialhr.com"
   @default_api_version "2026-04-01"

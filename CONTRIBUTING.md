@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for improving `FactorialHREx`.
+Thanks for improving `FactorialHR`.
 
 This package is intentionally small and framework-agnostic. Keep Phoenix, Ecto,
 tenant mappings, staffing rules, customer payloads and real credentials in host

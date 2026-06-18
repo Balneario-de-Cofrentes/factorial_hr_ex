@@ -1,4 +1,4 @@
-defmodule FactorialHREx do
+defmodule FactorialHR do
   @moduledoc """
   Generic Elixir client for the public Factorial HR REST API.
 
@@ -14,7 +14,7 @@ defmodule FactorialHREx do
         api_version: "2026-04-01"
       ]
 
-      {:ok, employees} = FactorialHREx.list_employees([only_active: true], opts)
+      {:ok, employees} = FactorialHR.list_employees([only_active: true], opts)
 
   The client also accepts bearer access tokens for applications that implement
   their own OAuth flow.
@@ -23,18 +23,18 @@ defmodule FactorialHREx do
 
   When `:telemetry` is available, requests emit:
 
-    * `[:factorial_hr_ex, :request, :start]`
-    * `[:factorial_hr_ex, :request, :stop]`
-    * `[:factorial_hr_ex, :request, :exception]`
+    * `[:factorial_hr, :request, :start]`
+    * `[:factorial_hr, :request, :stop]`
+    * `[:factorial_hr, :request, :exception]`
 
   Request metadata includes the HTTP method, resource path and resolved URL.
   """
 
-  alias FactorialHREx.Config
-  alias FactorialHREx.Error
+  alias FactorialHR.Config
+  alias FactorialHR.Error
 
   @employee_filter_batch_size 50
-  @user_agent "factorial_hr_ex/0.1.1"
+  @user_agent "factorial_hr/0.2.0"
 
   @type params :: keyword() | map()
   @type client_opts :: keyword() | map() | Config.t()
@@ -48,7 +48,7 @@ defmodule FactorialHREx do
   `/api/:version/resources` prefix from the configured API version.
 
   Returns the raw `%Req.Response{}` for successful 2xx responses and a
-  structured `%FactorialHREx.Error{}` for non-2xx HTTP responses or request
+  structured `%FactorialHR.Error{}` for non-2xx HTTP responses or request
   failures.
   """
   @spec get(String.t(), params(), client_opts()) :: response_result()
@@ -137,7 +137,7 @@ defmodule FactorialHREx do
   `:start_at`, `:end_at`, `:only_published`, `:only_states` and
   `:split_overnight_shifts`. Other params are passed through unchanged.
 
-      FactorialHREx.list_shifts(
+      FactorialHR.list_shifts(
         [
           employee_ids: [123, 456],
           start_at: "2026-06-01",
@@ -195,7 +195,7 @@ defmodule FactorialHREx do
 
   `company_id` can be passed per shift or configured once in the client opts.
 
-      FactorialHREx.create_shift(
+      FactorialHR.create_shift(
         %{
           employee_id: 42,
           start_at: "2026-06-01T08:00:00Z",
@@ -289,12 +289,12 @@ defmodule FactorialHREx do
       meta = %{method: method, path: path, url: url}
       start_time = System.monotonic_time()
 
-      telemetry([:factorial_hr_ex, :request, :start], %{system_time: System.system_time()}, meta)
+      telemetry([:factorial_hr, :request, :start], %{system_time: System.system_time()}, meta)
 
       case Req.request(req_opts) do
         {:ok, %Req.Response{} = response} ->
           telemetry(
-            [:factorial_hr_ex, :request, :stop],
+            [:factorial_hr, :request, :stop],
             %{duration: System.monotonic_time() - start_time},
             Map.put(meta, :status, response.status)
           )
@@ -305,7 +305,7 @@ defmodule FactorialHREx do
           error = Error.new(:transport_error, reason: reason, request: meta)
 
           telemetry(
-            [:factorial_hr_ex, :request, :exception],
+            [:factorial_hr, :request, :exception],
             %{duration: System.monotonic_time() - start_time},
             Map.merge(meta, %{kind: :transport_error, reason: reason})
           )
@@ -316,7 +316,7 @@ defmodule FactorialHREx do
           error = Error.new(:request_error, reason: reason, request: meta)
 
           telemetry(
-            [:factorial_hr_ex, :request, :exception],
+            [:factorial_hr, :request, :exception],
             %{duration: System.monotonic_time() - start_time},
             Map.merge(meta, %{kind: :request_error, reason: reason})
           )

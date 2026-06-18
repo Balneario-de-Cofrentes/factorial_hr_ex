@@ -1,8 +1,10 @@
 # Changelog
 
-## 0.1.1 - 2026-06-18
+## 0.2.0 - 2026-06-18
 
-- Prepares the first Hex.pm publication.
+- Renames the package from `factorial_hr_ex` to `factorial_hr` before the first
+  Hex.pm publication.
+- Renames the public module from `FactorialHREx` to `FactorialHR`.
 - Refines public README, scope, security and contribution documentation.
 - Aligns generated documentation source links with the release tag.
 

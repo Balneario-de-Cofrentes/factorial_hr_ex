@@ -1,8 +1,8 @@
-defmodule FactorialHREx.Error do
+defmodule FactorialHR.Error do
   @moduledoc """
-  Structured error returned by `FactorialHREx` operations.
+  Structured error returned by `FactorialHR` operations.
 
-  The client returns errors as `{:error, %FactorialHREx.Error{}}` so callers can
+  The client returns errors as `{:error, %FactorialHR.Error{}}` so callers can
   branch on stable fields without parsing log messages or response bodies.
   """
 

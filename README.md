@@ -1,8 +1,8 @@
-# FactorialHREx
+# FactorialHR
 
-[![CI](https://github.com/Balneario-de-Cofrentes/factorial_hr_ex/actions/workflows/ci.yml/badge.svg)](https://github.com/Balneario-de-Cofrentes/factorial_hr_ex/actions/workflows/ci.yml)
-[![Hex.pm](https://img.shields.io/hexpm/v/factorial_hr_ex.svg)](https://hex.pm/packages/factorial_hr_ex)
-[![HexDocs](https://img.shields.io/badge/hex-docs-blue.svg)](https://hexdocs.pm/factorial_hr_ex)
+[![CI](https://github.com/Balneario-de-Cofrentes/factorial_hr/actions/workflows/ci.yml/badge.svg)](https://github.com/Balneario-de-Cofrentes/factorial_hr/actions/workflows/ci.yml)
+[![Hex.pm](https://img.shields.io/hexpm/v/factorial_hr.svg)](https://hex.pm/packages/factorial_hr)
+[![HexDocs](https://img.shields.io/badge/hex-docs-blue.svg)](https://hexdocs.pm/factorial_hr)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 Framework-agnostic Elixir client for the public Factorial HR REST API.
@@ -17,7 +17,7 @@ mappings, staffing rules, private fixtures or customer-specific data.
 ```elixir
 def deps do
   [
-    {:factorial_hr_ex, "~> 0.1.1"}
+    {:factorial_hr, "~> 0.2.0"}
   ]
 end
 ```
@@ -30,10 +30,10 @@ opts = [
   api_version: "2026-04-01"
 ]
 
-{:ok, employees} = FactorialHREx.list_employees([only_active: true], opts)
+{:ok, employees} = FactorialHR.list_employees([only_active: true], opts)
 
 {:ok, shifts} =
-  FactorialHREx.list_shifts(
+  FactorialHR.list_shifts(
     [
       employee_ids: [123, 456],
       start_at: "2026-06-01",
@@ -53,12 +53,12 @@ opts = [
   api_version: "2026-04-01"
 ]
 
-FactorialHREx.list_locations([], opts)
+FactorialHR.list_locations([], opts)
 ```
 
 This package does not implement the OAuth authorization-code, refresh-token or
 revocation flows. Applications that need OAuth should obtain and refresh tokens
-in their own auth layer, then pass the access token to `FactorialHREx`.
+in their own auth layer, then pass the access token to `FactorialHR`.
 
 ## Configuration
 
@@ -106,16 +106,16 @@ For scripts, the client can fall back to:
 
 ## Error Handling
 
-Operations return `{:ok, value}` or `{:error, %FactorialHREx.Error{}}`.
+Operations return `{:ok, value}` or `{:error, %FactorialHR.Error{}}`.
 Low-level `get/3`, `post/3` and `delete/2` return `{:ok, %Req.Response{}}`
 for 2xx responses and structured errors for non-2xx responses.
 
 ```elixir
-case FactorialHREx.list_employees([], opts) do
+case FactorialHR.list_employees([], opts) do
   {:ok, employees} ->
     employees
 
-  {:error, %FactorialHREx.Error{type: :http_error, status: 401}} ->
+  {:error, %FactorialHR.Error{type: :http_error, status: 401}} ->
     {:error, :factorial_auth_failed}
 end
 ```
@@ -131,16 +131,16 @@ and callers can override it with `api_version: "YYYY-MM-DD"` or by passing a
 full Factorial API URL in `api_url`.
 
 ```elixir
-FactorialHREx.list_employees([], api_key: api_key, api_version: "2026-07-01")
+FactorialHR.list_employees([], api_key: api_key, api_version: "2026-07-01")
 ```
 
 ## Telemetry
 
 The client emits optional telemetry events when `:telemetry` is available:
 
-- `[:factorial_hr_ex, :request, :start]`
-- `[:factorial_hr_ex, :request, :stop]`
-- `[:factorial_hr_ex, :request, :exception]`
+- `[:factorial_hr, :request, :start]`
+- `[:factorial_hr, :request, :stop]`
+- `[:factorial_hr, :request, :exception]`
 
 Request metadata includes `:method`, `:path` and `:url`. Successful stop events
 also include `:status`; exception events include `:kind` and `:reason`.
@@ -170,7 +170,7 @@ Tests use `Req.Test` and do not call the live Factorial API.
 
 ## Scope and Security
 
-`FactorialHREx` is a generic API client. Application-specific mappings,
+`FactorialHR` is a generic API client. Application-specific mappings,
 production credentials, tenant payloads and employee data belong in the host
 application, not in this library.
 

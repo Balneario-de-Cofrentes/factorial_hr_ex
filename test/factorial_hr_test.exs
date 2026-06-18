@@ -1,7 +1,7 @@
-defmodule FactorialHRExTest do
+defmodule FactorialHRTest do
   use ExUnit.Case, async: false
 
-  alias FactorialHREx.Error
+  alias FactorialHR.Error
 
   @opts [
     api_key: "test-key",
@@ -18,7 +18,7 @@ defmodule FactorialHRExTest do
       Req.Test.json(conn, %{"data" => []})
     end)
 
-    assert {:ok, []} = FactorialHREx.list_employees([], @opts)
+    assert {:ok, []} = FactorialHR.list_employees([], @opts)
   end
 
   test "sends bearer auth when configured" do
@@ -35,7 +35,7 @@ defmodule FactorialHRExTest do
       Req.Test.json(conn, %{"data" => []})
     end)
 
-    assert {:ok, []} = FactorialHREx.list_locations([], opts)
+    assert {:ok, []} = FactorialHR.list_locations([], opts)
   end
 
   test "low-level get returns raw response for successful requests" do
@@ -45,7 +45,7 @@ defmodule FactorialHRExTest do
       Req.Test.json(conn, %{"data" => [%{"id" => 1}]})
     end)
 
-    assert {:ok, response} = FactorialHREx.get("/employees/employees", [], @opts)
+    assert {:ok, response} = FactorialHR.get("/employees/employees", [], @opts)
     assert response.status == 200
     assert response.body == %{"data" => [%{"id" => 1}]}
   end
@@ -58,7 +58,7 @@ defmodule FactorialHRExTest do
     end)
 
     assert {:error, %Error{type: :http_error, status: 403, body: %{"error" => "forbidden"}}} =
-             FactorialHREx.get("/employees/employees", [], @opts)
+             FactorialHR.get("/employees/employees", [], @opts)
   end
 
   test "infers base URL and version from a full Factorial API URL" do
@@ -73,7 +73,7 @@ defmodule FactorialHRExTest do
       Req.Test.json(conn, %{"data" => []})
     end)
 
-    assert {:ok, []} = FactorialHREx.list_work_areas([], opts)
+    assert {:ok, []} = FactorialHR.list_work_areas([], opts)
   end
 
   test "follows cursor pagination" do
@@ -93,7 +93,7 @@ defmodule FactorialHRExTest do
       end
     end)
 
-    assert {:ok, records} = FactorialHREx.list_employees([limit: 1], @opts)
+    assert {:ok, records} = FactorialHR.list_employees([limit: 1], @opts)
     assert Enum.map(records, & &1["id"]) == [1, 2]
   end
 
@@ -111,7 +111,7 @@ defmodule FactorialHRExTest do
     end)
 
     assert {:ok, [%{"id" => 1}]} =
-             FactorialHREx.list_shifts(
+             FactorialHR.list_shifts(
                [
                  employee_ids: [42],
                  location_ids: [7],
@@ -135,7 +135,7 @@ defmodule FactorialHRExTest do
     end)
 
     assert {:ok, [%{"id" => 1}]} =
-             FactorialHREx.list_shifts([employee_ids: Enum.to_list(1..101)], @opts)
+             FactorialHR.list_shifts([employee_ids: Enum.to_list(1..101)], @opts)
 
     queries = Agent.get(agent, & &1)
     assert length(queries) == 3
@@ -160,7 +160,7 @@ defmodule FactorialHRExTest do
     end)
 
     assert {:ok, [%{"id" => 10}]} =
-             FactorialHREx.list_attendance_shifts(~D[2026-06-01], ~D[2026-06-30], [], @opts)
+             FactorialHR.list_attendance_shifts(~D[2026-06-01], ~D[2026-06-30], [], @opts)
   end
 
   test "creates a shift with company id from config" do
@@ -183,7 +183,7 @@ defmodule FactorialHRExTest do
     end)
 
     assert {:ok, %{"id" => 999}} =
-             FactorialHREx.create_shift(
+             FactorialHR.create_shift(
                %{
                  employee_id: 42,
                  start_at: "2026-06-01T08:00:00Z",
@@ -197,7 +197,7 @@ defmodule FactorialHRExTest do
 
   test "returns structured invalid request error when company id is missing" do
     assert {:error, %Error{type: :invalid_request, reason: :company_id_missing}} =
-             FactorialHREx.create_shift(
+             FactorialHR.create_shift(
                %{
                  employee_id: 42,
                  start_at: "2026-06-01T08:00:00Z",
@@ -223,21 +223,21 @@ defmodule FactorialHRExTest do
       |> Req.Test.json(%{})
     end)
 
-    assert :ok = FactorialHREx.bulk_delete_shifts([100, 101], opts)
+    assert :ok = FactorialHR.bulk_delete_shifts([100, 101], opts)
   end
 
   test "bulk delete rejects an empty id list" do
     opts = Keyword.put(@opts, :author_id, "456")
 
     assert {:error, %Error{type: :invalid_request, reason: :ids_missing}} =
-             FactorialHREx.bulk_delete_shifts([], opts)
+             FactorialHR.bulk_delete_shifts([], opts)
   end
 
   test "bulk delete rejects invalid ids" do
     opts = Keyword.put(@opts, :author_id, "456")
 
     assert {:error, %Error{type: :invalid_request, reason: :invalid_ids}} =
-             FactorialHREx.bulk_delete_shifts([100, "101"], opts)
+             FactorialHR.bulk_delete_shifts([100, "101"], opts)
   end
 
   test "bulk delete accepts filter params without ids" do
@@ -258,7 +258,7 @@ defmodule FactorialHRExTest do
     end)
 
     assert :ok =
-             FactorialHREx.bulk_delete_shifts(
+             FactorialHR.bulk_delete_shifts(
                [
                  employee_ids: [42],
                  start_at: "2026-06-01T00:00:00Z",
@@ -276,6 +276,6 @@ defmodule FactorialHRExTest do
     end)
 
     assert {:error, %Error{type: :http_error, status: 401, body: %{"error" => "unauthorized"}}} =
-             FactorialHREx.list_contract_versions([], @opts)
+             FactorialHR.list_contract_versions([], @opts)
   end
 end

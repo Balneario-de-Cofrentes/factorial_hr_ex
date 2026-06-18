@@ -22,7 +22,7 @@ patched release when needed.
 
 ## Credential Handling
 
-`FactorialHREx` accepts API keys and bearer access tokens at runtime. The
+`FactorialHR` accepts API keys and bearer access tokens at runtime. The
 library does not store credentials, refresh tokens or tenant data.
 
 Never include real Factorial credentials, employee data or customer payloads in
