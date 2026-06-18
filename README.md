@@ -1,5 +1,10 @@
 # FactorialHREx
 
+[![CI](https://github.com/Balneario-de-Cofrentes/factorial_hr_ex/actions/workflows/ci.yml/badge.svg)](https://github.com/Balneario-de-Cofrentes/factorial_hr_ex/actions/workflows/ci.yml)
+[![Hex.pm](https://img.shields.io/hexpm/v/factorial_hr_ex.svg)](https://hex.pm/packages/factorial_hr_ex)
+[![HexDocs](https://img.shields.io/badge/hex-docs-blue.svg)](https://hexdocs.pm/factorial_hr_ex)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+
 Framework-agnostic Elixir client for the public Factorial HR REST API.
 
 This library is intentionally generic: it handles authentication, versioned API
@@ -7,30 +12,12 @@ URLs, cursor pagination, common HR resources, shift management, attendance
 shifts and contract resources. It does not contain Phoenix, Ecto, tenant
 mappings, staffing rules, private fixtures or customer-specific data.
 
-## Status
-
-`0.1.0` is the first local/path dependency cut. The public repository target is:
-
-https://github.com/Balneario-de-Cofrentes/factorial_hr_ex
-
 ## Installation
 
-As a local dependency while stabilizing the API:
-
 ```elixir
 def deps do
   [
-    {:factorial_hr_ex, path: "../factorial_hr_ex"}
-  ]
-end
-```
-
-After publishing to Hex:
-
-```elixir
-def deps do
-  [
-    {:factorial_hr_ex, "~> 0.1.0"}
+    {:factorial_hr_ex, "~> 0.1.1"}
   ]
 end
 ```
@@ -137,9 +124,33 @@ end
 a map/keyword list of Factorial bulk-delete filters. Empty ID lists and mixed
 ID types are rejected locally before any API request is sent.
 
-## Tests
+## API Versioning
+
+Factorial uses date-based API versions. The default version is `2026-04-01`,
+and callers can override it with `api_version: "YYYY-MM-DD"` or by passing a
+full Factorial API URL in `api_url`.
+
+```elixir
+FactorialHREx.list_employees([], api_key: api_key, api_version: "2026-07-01")
+```
+
+## Telemetry
+
+The client emits optional telemetry events when `:telemetry` is available:
+
+- `[:factorial_hr_ex, :request, :start]`
+- `[:factorial_hr_ex, :request, :stop]`
+- `[:factorial_hr_ex, :request, :exception]`
+
+Request metadata includes `:method`, `:path` and `:url`. Successful stop events
+also include `:status`; exception events include `:kind` and `:reason`.
+
+## Development
 
 ```bash
+mix deps.get
+mix format --check-formatted
+mix compile --warnings-as-errors
 mix test
 ```
 
@@ -165,3 +176,11 @@ application, not in this library.
 
 Endpoint behavior should be documented by linking to Factorial's public API
 reference instead of vendoring copied docs or generated schemas.
+
+Security reports are handled privately; see [SECURITY.md](SECURITY.md).
+
+## Contributing
+
+Issues and pull requests are welcome. Please keep this package generic and
+framework-independent; tenant-specific behavior belongs in host applications.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the development workflow.

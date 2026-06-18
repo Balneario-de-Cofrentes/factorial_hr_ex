@@ -4,7 +4,7 @@ defmodule FactorialHREx.MixProject do
   def project do
     [
       app: :factorial_hr_ex,
-      version: "0.1.0",
+      version: "0.1.1",
       elixir: "~> 1.14",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -14,8 +14,8 @@ defmodule FactorialHREx.MixProject do
       homepage_url: "https://github.com/Balneario-de-Cofrentes/factorial_hr_ex",
       docs: [
         main: "FactorialHREx",
-        source_ref: "v0.1.0",
-        extras: ["README.md", "CHANGELOG.md", "LICENSE"]
+        source_ref: "v0.1.1",
+        extras: ["README.md", "CHANGELOG.md", "LICENSE", "CONTRIBUTING.md", "SECURITY.md"]
       ]
     ]
   end
@@ -43,6 +43,16 @@ defmodule FactorialHREx.MixProject do
   defp package do
     [
       name: "factorial_hr_ex",
+      files: [
+        "lib",
+        ".formatter.exs",
+        "mix.exs",
+        "README.md",
+        "LICENSE",
+        "CHANGELOG.md",
+        "CONTRIBUTING.md",
+        "SECURITY.md"
+      ],
       licenses: ["MIT"],
       links: %{
         "GitHub" => "https://github.com/Balneario-de-Cofrentes/factorial_hr_ex",

@@ -6,13 +6,35 @@ defmodule FactorialHREx do
   knows how to authenticate, build versioned resource URLs, follow Factorial's
   cursor pagination and call common HR endpoints, returning Factorial payloads
   as maps.
+
+  ## Quick start
+
+      opts = [
+        api_key: System.fetch_env!("FACTORIAL_API_KEY"),
+        api_version: "2026-04-01"
+      ]
+
+      {:ok, employees} = FactorialHREx.list_employees([only_active: true], opts)
+
+  The client also accepts bearer access tokens for applications that implement
+  their own OAuth flow.
+
+  ## Telemetry
+
+  When `:telemetry` is available, requests emit:
+
+    * `[:factorial_hr_ex, :request, :start]`
+    * `[:factorial_hr_ex, :request, :stop]`
+    * `[:factorial_hr_ex, :request, :exception]`
+
+  Request metadata includes the HTTP method, resource path and resolved URL.
   """
 
   alias FactorialHREx.Config
   alias FactorialHREx.Error
 
   @employee_filter_batch_size 50
-  @user_agent "factorial_hr_ex/0.1.0"
+  @user_agent "factorial_hr_ex/0.1.1"
 
   @type params :: keyword() | map()
   @type client_opts :: keyword() | map() | Config.t()
@@ -114,6 +136,16 @@ defmodule FactorialHREx do
   Recognized convenience params include `:employee_ids`, `:location_ids`,
   `:start_at`, `:end_at`, `:only_published`, `:only_states` and
   `:split_overnight_shifts`. Other params are passed through unchanged.
+
+      FactorialHREx.list_shifts(
+        [
+          employee_ids: [123, 456],
+          start_at: "2026-06-01",
+          end_at: "2026-06-30",
+          only_states: ["published"]
+        ],
+        opts
+      )
   """
   @spec list_shifts(params(), client_opts()) :: {:ok, list(map())} | {:error, Error.t()}
   def list_shifts(params \\ [], opts \\ []) do
@@ -160,6 +192,19 @@ defmodule FactorialHREx do
 
   @doc """
   Creates one shift in Factorial shift management.
+
+  `company_id` can be passed per shift or configured once in the client opts.
+
+      FactorialHREx.create_shift(
+        %{
+          employee_id: 42,
+          start_at: "2026-06-01T08:00:00Z",
+          end_at: "2026-06-01T16:00:00Z",
+          location_id: 7,
+          work_area_id: 8
+        },
+        Keyword.put(opts, :company_id, 123)
+      )
   """
   @spec create_shift(map(), client_opts()) :: {:ok, map()} | {:error, Error.t()}
   def create_shift(params, opts \\ []) when is_map(params) do
@@ -221,6 +266,7 @@ defmodule FactorialHREx do
 
   Pass a list of IDs or a map/keyword list matching Factorial's bulk delete
   filters. `author_id` is read from params first, then from client config.
+  Empty ID lists are rejected before making an API request.
   """
   @spec bulk_delete_shifts([integer()] | params(), client_opts()) :: :ok | {:error, Error.t()}
   def bulk_delete_shifts(ids_or_params, opts \\ []) do
