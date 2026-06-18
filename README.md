@@ -157,13 +157,11 @@ Tests use `Req.Test` and do not call the live Factorial API.
 - Cursor pagination uses `after_id` / `before_id` and `meta.end_cursor`:
   https://apidoc.factorialhr.com/docs/pagination
 
-## Publication Notes
+## Scope and Security
 
-- Do not commit real Factorial credentials, customer payloads, employee data or
-  tenant-specific mappings.
-- Do not copy Factorial's proprietary docs or generated schemas into this
-  repository; link to the public API reference instead.
-- Review Factorial's marketplace/integration terms before presenting this as a
-  marketplace integration. As of the linked authentication docs, API-key usage
-  is appropriate for internal company integrations, while marketplace
-  integrations must use OAuth.
+`FactorialHREx` is a generic API client. Application-specific mappings,
+production credentials, tenant payloads and employee data belong in the host
+application, not in this library.
+
+Endpoint behavior should be documented by linking to Factorial's public API
+reference instead of vendoring copied docs or generated schemas.
