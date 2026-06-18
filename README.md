@@ -1,0 +1,169 @@
+# FactorialHREx
+
+Framework-agnostic Elixir client for the public Factorial HR REST API.
+
+This library is intentionally generic: it handles authentication, versioned API
+URLs, cursor pagination, common HR resources, shift management, attendance
+shifts and contract resources. It does not contain Phoenix, Ecto, tenant
+mappings, staffing rules, private fixtures or customer-specific data.
+
+## Status
+
+`0.1.0` is the first local/path dependency cut. The public repository target is:
+
+https://github.com/Balneario-de-Cofrentes/factorial_hr_ex
+
+## Installation
+
+As a local dependency while stabilizing the API:
+
+```elixir
+def deps do
+  [
+    {:factorial_hr_ex, path: "../factorial_hr_ex"}
+  ]
+end
+```
+
+After publishing to Hex:
+
+```elixir
+def deps do
+  [
+    {:factorial_hr_ex, "~> 0.1.0"}
+  ]
+end
+```
+
+## Usage
+
+```elixir
+opts = [
+  api_key: System.fetch_env!("FACTORIAL_API_KEY"),
+  api_version: "2026-04-01"
+]
+
+{:ok, employees} = FactorialHREx.list_employees([only_active: true], opts)
+
+{:ok, shifts} =
+  FactorialHREx.list_shifts(
+    [
+      employee_ids: [123, 456],
+      start_at: "2026-06-01",
+      end_at: "2026-06-30",
+      only_states: ["published"]
+    ],
+    opts
+  )
+```
+
+Bearer access-token usage:
+
+```elixir
+opts = [
+  auth_mode: :bearer,
+  access_token: token,
+  api_version: "2026-04-01"
+]
+
+FactorialHREx.list_locations([], opts)
+```
+
+This package does not implement the OAuth authorization-code, refresh-token or
+revocation flows. Applications that need OAuth should obtain and refresh tokens
+in their own auth layer, then pass the access token to `FactorialHREx`.
+
+## Configuration
+
+Prefer explicit options from your host application configuration:
+
+```elixir
+[
+  api_key: "...",
+  auth_mode: :api_key,
+  base_url: "https://api.factorialhr.com",
+  api_version: "2026-04-01",
+  company_id: 123,
+  author_id: 456,
+  req_options: [retry: :transient]
+]
+```
+
+Retries are disabled by default. Configure them through `req_options` when the
+calling application wants retry behavior.
+
+For scripts, the client can fall back to:
+
+- `FACTORIAL_API_KEY`
+- `FACTORIAL_ACCESS_TOKEN`
+- `FACTORIAL_API_TOKEN`
+- `FACTORIAL_API_URL`
+- `FACTORIAL_API_VERSION`
+
+## Supported Resources
+
+- `list_employees/2`
+- `list_locations/2`
+- `list_work_areas/2`
+- `list_teams/2`
+- `list_team_employee_ids/1`
+- `list_attendance_shifts/4`
+- `list_shifts/2`
+- `create_shift/2`
+- `bulk_create_shifts/2`
+- `delete_shift/2`
+- `bulk_delete_shifts/2`
+- `list_contract_versions/2`
+- `list_compensations/2`
+- Low-level `get/3`, `post/3`, `delete/2` and `all/4`
+
+## Error Handling
+
+Operations return `{:ok, value}` or `{:error, %FactorialHREx.Error{}}`.
+Low-level `get/3`, `post/3` and `delete/2` return `{:ok, %Req.Response{}}`
+for 2xx responses and structured errors for non-2xx responses.
+
+```elixir
+case FactorialHREx.list_employees([], opts) do
+  {:ok, employees} ->
+    employees
+
+  {:error, %FactorialHREx.Error{type: :http_error, status: 401}} ->
+    {:error, :factorial_auth_failed}
+end
+```
+
+`bulk_delete_shifts/2` accepts either a non-empty list of integer shift IDs or
+a map/keyword list of Factorial bulk-delete filters. Empty ID lists and mixed
+ID types are rejected locally before any API request is sent.
+
+## Tests
+
+```bash
+mix test
+```
+
+Tests use `Req.Test` and do not call the live Factorial API.
+
+## Factorial API References
+
+- API keys use the `x-api-key` header:
+  https://apidoc.factorialhr.com/docs/api-keys
+- Factorial states that API keys are for internal company integrations and
+  marketplace integrations must use OAuth:
+  https://apidoc.factorialhr.com/docs/authentication
+- Public API versions are date-based and supported for one year:
+  https://apidoc.factorialhr.com/docs/api-versioning
+- Cursor pagination uses `after_id` / `before_id` and `meta.end_cursor`:
+  https://apidoc.factorialhr.com/docs/pagination
+
+## Publication Notes
+
+- Do not commit real Factorial credentials, customer payloads, employee data or
+  tenant-specific mappings.
+- Do not copy Factorial's proprietary docs or generated schemas into this
+  repository; link to the public API reference instead.
+- Review Factorial's marketplace/integration terms before presenting this as a
+  marketplace integration. As of the linked authentication docs, API-key usage
+  is appropriate for internal company integrations, while marketplace
+  integrations must use OAuth.
