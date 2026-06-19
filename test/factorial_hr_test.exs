@@ -38,6 +38,29 @@ defmodule FactorialHRTest do
     assert {:ok, []} = FactorialHR.list_locations([], opts)
   end
 
+  test "preserves required headers when req options include custom headers" do
+    req_options =
+      @opts
+      |> Keyword.fetch!(:req_options)
+      |> Keyword.put(:headers, [
+        {"x-extra", "1"},
+        {"x-api-key", "wrong"},
+        {"accept", "text/plain"}
+      ])
+
+    opts = Keyword.put(@opts, :req_options, req_options)
+
+    Req.Test.stub(__MODULE__, fn conn ->
+      assert Plug.Conn.get_req_header(conn, "x-extra") == ["1"]
+      assert Plug.Conn.get_req_header(conn, "x-api-key") == ["test-key"]
+      assert Plug.Conn.get_req_header(conn, "accept") == ["application/json"]
+
+      Req.Test.json(conn, %{"data" => []})
+    end)
+
+    assert {:ok, []} = FactorialHR.list_employees([], opts)
+  end
+
   test "low-level get returns raw response for successful requests" do
     Req.Test.stub(__MODULE__, fn conn ->
       assert conn.request_path == "/api/2026-04-01/resources/employees/employees"
@@ -74,6 +97,17 @@ defmodule FactorialHRTest do
     end)
 
     assert {:ok, []} = FactorialHR.list_work_areas([], opts)
+  end
+
+  test "returns structured config errors for invalid URLs and versions" do
+    assert {:error, %Error{type: :invalid_config, reason: :base_url_invalid}} =
+             FactorialHR.list_employees([], Keyword.put(@opts, :base_url, 123))
+
+    assert {:error, %Error{type: :invalid_config, reason: :api_url_invalid}} =
+             FactorialHR.list_employees([], Keyword.put(@opts, :api_url, 123))
+
+    assert {:error, %Error{type: :invalid_config, reason: :api_version_invalid}} =
+             FactorialHR.list_employees([], Keyword.put(@opts, :api_version, 123))
   end
 
   test "follows cursor pagination" do
@@ -195,6 +229,60 @@ defmodule FactorialHRTest do
              )
   end
 
+  test "creates a shift with company id from params" do
+    Req.Test.stub(__MODULE__, fn conn ->
+      {:ok, body, conn} = Plug.Conn.read_body(conn)
+      decoded = Jason.decode!(body)
+
+      assert decoded["company_id"] == 12_345
+      assert decoded["employee_id"] == 42
+      assert decoded["location_id"] == 7
+      assert decoded["work_area_id"] == 8
+
+      conn
+      |> Plug.Conn.put_status(201)
+      |> Req.Test.json(%{"id" => 999})
+    end)
+
+    assert {:ok, %{"id" => 999}} =
+             FactorialHR.create_shift(
+               %{
+                 employee_id: "42",
+                 start_at: "2026-06-01T08:00:00Z",
+                 end_at: "2026-06-01T16:00:00Z",
+                 company_id: "12345",
+                 location_id: "7",
+                 work_area_id: "8"
+               },
+               @opts
+             )
+  end
+
+  test "returns structured invalid request errors when required shift fields are missing" do
+    valid_shift = %{
+      employee_id: 42,
+      start_at: "2026-06-01T08:00:00Z",
+      end_at: "2026-06-01T16:00:00Z"
+    }
+
+    opts = Keyword.put(@opts, :company_id, "12345")
+
+    assert {:error, %Error{type: :invalid_request, reason: :employee_id_missing}} =
+             valid_shift
+             |> Map.delete(:employee_id)
+             |> FactorialHR.create_shift(opts)
+
+    assert {:error, %Error{type: :invalid_request, reason: :start_at_missing}} =
+             valid_shift
+             |> Map.delete(:start_at)
+             |> FactorialHR.create_shift(opts)
+
+    assert {:error, %Error{type: :invalid_request, reason: :end_at_missing}} =
+             valid_shift
+             |> Map.delete(:end_at)
+             |> FactorialHR.create_shift(opts)
+  end
+
   test "returns structured invalid request error when company id is missing" do
     assert {:error, %Error{type: :invalid_request, reason: :company_id_missing}} =
              FactorialHR.create_shift(
@@ -204,6 +292,28 @@ defmodule FactorialHRTest do
                  end_at: "2026-06-01T16:00:00Z"
                },
                @opts
+             )
+  end
+
+  test "bulk create returns an unexpected response error for unknown success payloads" do
+    opts = Keyword.put(@opts, :company_id, "12345")
+
+    Req.Test.stub(__MODULE__, fn conn ->
+      conn
+      |> Plug.Conn.put_status(201)
+      |> Req.Test.json(%{"unexpected" => []})
+    end)
+
+    assert {:error, %Error{type: :unexpected_response, body: %{"unexpected" => []}}} =
+             FactorialHR.bulk_create_shifts(
+               [
+                 %{
+                   employee_id: 42,
+                   start_at: "2026-06-01T08:00:00Z",
+                   end_at: "2026-06-01T16:00:00Z"
+                 }
+               ],
+               opts
              )
   end
 
@@ -238,6 +348,16 @@ defmodule FactorialHRTest do
 
     assert {:error, %Error{type: :invalid_request, reason: :invalid_ids}} =
              FactorialHR.bulk_delete_shifts([100, "101"], opts)
+  end
+
+  test "bulk delete rejects requests without ids or filter selectors" do
+    opts = Keyword.put(@opts, :author_id, "456")
+
+    assert {:error, %Error{type: :invalid_request, reason: :bulk_delete_selector_missing}} =
+             FactorialHR.bulk_delete_shifts(%{}, opts)
+
+    assert {:error, %Error{type: :invalid_request, reason: :bulk_delete_selector_missing}} =
+             FactorialHR.bulk_delete_shifts([author_id: 456], opts)
   end
 
   test "bulk delete accepts filter params without ids" do

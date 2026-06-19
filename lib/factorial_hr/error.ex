@@ -31,6 +31,7 @@ defmodule FactorialHR.Error do
   end
 
   defp default_message(:config_missing, _attrs), do: "Factorial API configuration is missing"
+  defp default_message(:invalid_config, attrs), do: inspect(Keyword.get(attrs, :reason))
 
   defp default_message(:http_error, attrs) do
     "Factorial API request failed with status #{Keyword.get(attrs, :status)}"

@@ -17,7 +17,7 @@ mappings, staffing rules, private fixtures or customer-specific data.
 ```elixir
 def deps do
   [
-    {:factorial_hr, "~> 0.2.0"}
+    {:factorial_hr, "~> 0.2.1"}
   ]
 end
 ```
@@ -121,8 +121,9 @@ end
 ```
 
 `bulk_delete_shifts/2` accepts either a non-empty list of integer shift IDs or
-a map/keyword list of Factorial bulk-delete filters. Empty ID lists and mixed
-ID types are rejected locally before any API request is sent.
+a map/keyword list with supported Factorial bulk-delete selectors (`ids`,
+`employee_ids`, `start_at`, `end_at`). Empty ID lists, mixed ID types and
+selectorless requests are rejected locally before any API request is sent.
 
 ## API Versioning
 

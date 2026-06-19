@@ -34,7 +34,14 @@ defmodule FactorialHR do
   alias FactorialHR.Error
 
   @employee_filter_batch_size 50
-  @user_agent "factorial_hr/0.2.0"
+  @user_agent "factorial_hr/0.2.1"
+  @bulk_delete_selector_keys ~w(ids employee_ids start_at end_at)
+  @shift_missing_reasons %{
+    employee_id: :employee_id_missing,
+    start_at: :start_at_missing,
+    end_at: :end_at_missing,
+    company_id: :company_id_missing
+  }
 
   @type params :: keyword() | map()
   @type client_opts :: keyword() | map() | Config.t()
@@ -234,7 +241,7 @@ defmodule FactorialHR do
 
       case request(:post, "/shift_management/shifts/bulk_create", body, [], config) do
         {:ok, %{status: status, body: body}} when status in [200, 201] ->
-          {:ok, created_shifts(body)}
+          created_shifts(body)
 
         {:ok, %{status: status, body: body}} ->
           http_error(status, body, :post, "/shift_management/shifts/bulk_create")
@@ -338,22 +345,51 @@ defmodule FactorialHR do
   defp normalize_public_response({:error, reason}, _method, _path), do: {:error, reason}
 
   defp build_req_options(method, url, body, params, config) do
+    req_options = Keyword.delete(config.req_options, :headers)
+
     [
       method: method,
       url: url,
-      headers: [
-        auth_header(config),
-        {"accept", "application/json"},
-        {"content-type", "application/json"},
-        {"user-agent", @user_agent}
-      ],
+      headers: request_headers(config),
       receive_timeout: config.receive_timeout,
       retry: false
     ]
     |> maybe_put_params(params)
     |> maybe_put_json(body)
-    |> Keyword.merge(config.req_options)
+    |> Keyword.merge(req_options)
   end
+
+  defp request_headers(config) do
+    required_headers = [
+      auth_header(config),
+      {"accept", "application/json"},
+      {"content-type", "application/json"},
+      {"user-agent", @user_agent}
+    ]
+
+    config.req_options
+    |> Keyword.get(:headers, [])
+    |> normalize_headers()
+    |> merge_headers(required_headers)
+  end
+
+  defp normalize_headers(nil), do: []
+  defp normalize_headers(headers) when is_map(headers), do: Map.to_list(headers)
+  defp normalize_headers(headers) when is_list(headers), do: headers
+  defp normalize_headers(_headers), do: []
+
+  defp merge_headers(custom_headers, required_headers) do
+    required_names =
+      required_headers
+      |> Enum.map(fn {name, _value} -> header_name(name) end)
+      |> MapSet.new()
+
+    custom_headers
+    |> Enum.reject(fn {name, _value} -> MapSet.member?(required_names, header_name(name)) end)
+    |> Kernel.++(required_headers)
+  end
+
+  defp header_name(name), do: name |> to_string() |> String.downcase()
 
   defp maybe_put_params(opts, params) do
     params = normalize_params(params)
@@ -403,10 +439,11 @@ defmodule FactorialHR do
           |> put_repeated_param("employee_ids[]", batch)
 
         case all(path, batch_params, collection_name, opts) do
-          {:ok, records} -> {:cont, {:ok, acc ++ records}}
+          {:ok, records} -> {:cont, {:ok, [records | acc]}}
           {:error, reason} -> {:halt, {:error, reason}}
         end
       end)
+      |> flatten_accumulated_pages()
       |> dedupe_collection()
     else
       all(path, params, collection_name, opts)
@@ -429,13 +466,13 @@ defmodule FactorialHR do
     case request(:get, path, nil, params_with_cursor, config) do
       {:ok, %{status: 200, body: body}} ->
         with {:ok, records, meta} <- parse_collection_response(body, collection_name) do
-          all_records = accumulated ++ records
+          pages = [records | accumulated]
           end_cursor = Map.get(meta, "end_cursor")
 
           if Map.get(meta, "has_next_page", false) and valid_next_cursor?(cursor, end_cursor) do
-            fetch_all_pages(path, params, collection_name, config, all_records, end_cursor)
+            fetch_all_pages(path, params, collection_name, config, pages, end_cursor)
           else
-            {:ok, all_records}
+            flatten_accumulated_pages({:ok, pages})
           end
         end
 
@@ -551,29 +588,38 @@ defmodule FactorialHR do
   end
 
   defp build_shift_body(params, config) do
-    company_id = param_value(params, :company_id) || Config.parse_int(config.company_id)
+    employee_id = params |> param_value(:employee_id) |> Config.parse_int()
+    start_at = param_value(params, :start_at)
+    end_at = param_value(params, :end_at)
 
-    if is_nil(company_id) or company_id == "" do
-      {:error, Error.new(:invalid_request, reason: :company_id_missing)}
-    else
+    company_id =
+      params |> param_value(:company_id) |> value_or(config.company_id) |> Config.parse_int()
+
+    location_id = params |> param_value(:location_id) |> Config.parse_int()
+    work_area_id = params |> param_value(:work_area_id) |> Config.parse_int()
+
+    with :ok <- validate_shift_field(:employee_id, employee_id),
+         :ok <- validate_shift_field(:start_at, start_at),
+         :ok <- validate_shift_field(:end_at, end_at),
+         :ok <- validate_shift_field(:company_id, company_id) do
       {:ok,
        %{
-         "employee_id" => param_value(params, :employee_id),
-         "start_at" => param_value(params, :start_at),
-         "end_at" => param_value(params, :end_at),
+         "employee_id" => employee_id,
+         "start_at" => start_at,
+         "end_at" => end_at,
          "company_id" => company_id
        }
        |> maybe_put("name", param_value(params, :name))
        |> maybe_put("notes", param_value(params, :notes))
-       |> maybe_put("location_id", param_value(params, :location_id))
-       |> maybe_put("work_area_id", param_value(params, :work_area_id))}
+       |> maybe_put("location_id", location_id)
+       |> maybe_put("work_area_id", work_area_id)}
     end
   end
 
-  defp created_shifts(body) when is_list(body), do: body
-  defp created_shifts(%{"shifts" => shifts}) when is_list(shifts), do: shifts
-  defp created_shifts(%{"data" => shifts}) when is_list(shifts), do: shifts
-  defp created_shifts(_body), do: []
+  defp created_shifts(body) when is_list(body), do: {:ok, body}
+  defp created_shifts(%{"shifts" => shifts}) when is_list(shifts), do: {:ok, shifts}
+  defp created_shifts(%{"data" => shifts}) when is_list(shifts), do: {:ok, shifts}
+  defp created_shifts(body), do: unexpected_response(body)
 
   defp build_bulk_delete_body([], _config) do
     {:error, Error.new(:invalid_request, reason: :ids_missing)}
@@ -590,15 +636,14 @@ defmodule FactorialHR do
   end
 
   defp build_bulk_delete_body(params, config) when is_map(params) do
-    body = params |> normalize_params() |> Map.new()
+    body = params |> normalize_params() |> Map.new() |> stringify_keys()
 
-    author_id =
-      Map.get(body, "author_id") || Map.get(body, :author_id) ||
-        Config.parse_int(config.author_id)
+    author_id = body |> Map.get("author_id") |> value_or(config.author_id) |> Config.parse_int()
 
     with :ok <- validate_bulk_delete_ids(body),
-         :ok <- validate_author_id(author_id) do
-      {:ok, body |> stringify_keys() |> Map.put("author_id", author_id)}
+         :ok <- validate_author_id(author_id),
+         :ok <- validate_bulk_delete_selector(body) do
+      {:ok, Map.put(body, "author_id", author_id)}
     end
   end
 
@@ -611,7 +656,7 @@ defmodule FactorialHR do
   end
 
   defp validate_bulk_delete_ids(body) do
-    ids = Map.get(body, "ids") || Map.get(body, :ids)
+    ids = Map.get(body, "ids")
 
     cond do
       is_nil(ids) ->
@@ -628,9 +673,28 @@ defmodule FactorialHR do
     end
   end
 
+  defp validate_bulk_delete_selector(body) do
+    if Enum.any?(@bulk_delete_selector_keys, &present_selector?(Map.get(body, &1))) do
+      :ok
+    else
+      {:error, Error.new(:invalid_request, reason: :bulk_delete_selector_missing)}
+    end
+  end
+
+  defp present_selector?(value) when is_list(value), do: value != []
+  defp present_selector?(value), do: not blank?(value)
+
   defp validate_author_id(author_id) do
-    if is_nil(author_id) or author_id == "" do
+    if blank?(author_id) do
       {:error, Error.new(:invalid_request, reason: :author_id_missing)}
+    else
+      :ok
+    end
+  end
+
+  defp validate_shift_field(field, value) do
+    if blank?(value) do
+      {:error, Error.new(:invalid_request, reason: Map.fetch!(@shift_missing_reasons, field))}
     else
       :ok
     end
@@ -643,7 +707,22 @@ defmodule FactorialHR do
   defp param_value(_params, _key), do: nil
 
   defp maybe_put(body, _key, nil), do: body
+  defp maybe_put(body, _key, ""), do: body
   defp maybe_put(body, key, value), do: Map.put(body, key, value)
+
+  defp value_or(value, default) do
+    if blank?(value), do: default, else: value
+  end
+
+  defp blank?(value) when is_binary(value), do: String.trim(value) == ""
+  defp blank?(nil), do: true
+  defp blank?(_value), do: false
+
+  defp flatten_accumulated_pages({:ok, pages}) do
+    {:ok, pages |> Enum.reverse() |> List.flatten()}
+  end
+
+  defp flatten_accumulated_pages(result), do: result
 
   defp stringify_keys(map) do
     Map.new(map, fn

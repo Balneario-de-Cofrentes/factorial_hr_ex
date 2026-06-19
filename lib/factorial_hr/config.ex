@@ -56,21 +56,23 @@ defmodule FactorialHR.Config do
 
   def new(opts) when is_list(opts) or is_map(opts) do
     opts = normalize_opts(opts)
-    {base_url, api_version} = normalize_api_location(opts)
-    auth_mode = normalize_auth_mode(get_opt(opts, :auth_mode) || get_opt(opts, :auth))
-    token = token_for(auth_mode, opts)
 
-    %__MODULE__{
-      base_url: base_url,
-      api_version: api_version,
-      auth_mode: auth_mode,
-      token: token,
-      company_id: get_opt(opts, :company_id),
-      author_id: get_opt(opts, :author_id),
-      req_options: normalize_req_options(get_opt(opts, :req_options)),
-      receive_timeout: get_opt(opts, :receive_timeout) || @default_timeout
-    }
-    |> validate()
+    with {:ok, base_url, api_version} <- normalize_api_location(opts) do
+      auth_mode = normalize_auth_mode(get_opt(opts, :auth_mode) || get_opt(opts, :auth))
+      token = token_for(auth_mode, opts)
+
+      %__MODULE__{
+        base_url: base_url,
+        api_version: api_version,
+        auth_mode: auth_mode,
+        token: token,
+        company_id: get_opt(opts, :company_id),
+        author_id: get_opt(opts, :author_id),
+        req_options: normalize_req_options(get_opt(opts, :req_options)),
+        receive_timeout: get_opt(opts, :receive_timeout) || @default_timeout
+      }
+      |> validate()
+    end
   end
 
   @doc false
@@ -87,11 +89,17 @@ defmodule FactorialHR.Config do
 
   def parse_int(value), do: value
 
-  defp validate(%__MODULE__{token: token} = config) when is_binary(token) and token != "" do
-    {:ok, config}
+  defp validate(%__MODULE__{} = config) do
+    with :ok <- validate_binary(:base_url, config.base_url),
+         :ok <- validate_binary(:api_version, config.api_version),
+         :ok <- validate_token(config.token) do
+      {:ok, config}
+    end
   end
 
-  defp validate(_config) do
+  defp validate_token(token) when is_binary(token) and token != "", do: :ok
+
+  defp validate_token(_token) do
     {:error,
      Error.new(:config_missing,
        reason: :token_missing,
@@ -106,18 +114,39 @@ defmodule FactorialHR.Config do
     api_url = get_opt(opts, :api_url)
     api_version = get_opt(opts, :api_version)
 
-    base_url =
-      get_opt(opts, :base_url) || api_url || env("FACTORIAL_API_URL") || @default_base_url
+    {url_source, base_url} =
+      cond do
+        not is_nil(get_opt(opts, :base_url)) -> {:base_url, get_opt(opts, :base_url)}
+        not is_nil(api_url) -> {:api_url, api_url}
+        env_url = env("FACTORIAL_API_URL") -> {:api_url, env_url}
+        true -> {:base_url, @default_base_url}
+      end
 
-    case split_versioned_api_url(base_url) do
-      {:ok, parsed_base_url, parsed_version} ->
-        {parsed_base_url, api_version || parsed_version}
+    with :ok <- validate_binary(url_source, base_url),
+         :ok <- validate_optional_binary(:api_version, api_version) do
+      case split_versioned_api_url(base_url) do
+        {:ok, parsed_base_url, parsed_version} ->
+          {:ok, parsed_base_url, api_version || parsed_version}
 
-      :error ->
-        {String.trim_trailing(base_url, "/"),
-         api_version || env("FACTORIAL_API_VERSION") || @default_api_version}
+        :error ->
+          {:ok, String.trim_trailing(base_url, "/"),
+           api_version || env("FACTORIAL_API_VERSION") || @default_api_version}
+      end
     end
   end
+
+  defp validate_binary(_field, value) when is_binary(value) and value != "", do: :ok
+
+  defp validate_binary(field, _value) do
+    {:error, Error.new(:invalid_config, reason: invalid_reason(field))}
+  end
+
+  defp validate_optional_binary(_field, nil), do: :ok
+  defp validate_optional_binary(field, value), do: validate_binary(field, value)
+
+  defp invalid_reason(:base_url), do: :base_url_invalid
+  defp invalid_reason(:api_url), do: :api_url_invalid
+  defp invalid_reason(:api_version), do: :api_version_invalid
 
   defp split_versioned_api_url(url) when is_binary(url) do
     case Regex.run(

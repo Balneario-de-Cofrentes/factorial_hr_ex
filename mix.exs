@@ -4,7 +4,7 @@ defmodule FactorialHR.MixProject do
   def project do
     [
       app: :factorial_hr,
-      version: "0.2.0",
+      version: "0.2.1",
       elixir: "~> 1.14",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -14,7 +14,7 @@ defmodule FactorialHR.MixProject do
       homepage_url: "https://github.com/Balneario-de-Cofrentes/factorial_hr",
       docs: [
         main: "FactorialHR",
-        source_ref: "v0.2.0",
+        source_ref: "v0.2.1",
         extras: ["README.md", "CHANGELOG.md", "LICENSE", "CONTRIBUTING.md", "SECURITY.md"]
       ]
     ]
